@@ -1,0 +1,28 @@
+<h1>Invites for Receipt #{{ receipt.id }}</h1>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="email" name="email" placeholder="friend@example.com" required>
+  <button type="submit">Send Invite</button>
+</form>
+
+{% if new_link %}
+  <p><strong>Invite link (dev):</strong> <a href="{{ new_link }}">{{ new_link }}</a></p>
+{% endif %}
+
+<h2>Existing Invites</h2>
+<table border="1">
+  <tr><th>Email</th><th>Status</th><th>Token link</th><th>Created</th></tr>
+  {% for i in invites %}
+    <tr>
+      <td>{{ i.invitee_email }}</td>
+      <td>{{ i.status }}</td>
+      <td><a href="{{ request.scheme }}://{{ request.get_host }}/invite/{{ i.token }}/">open</a></td>
+      <td>{{ i.created_at }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">No invites yet.</td></tr>
+  {% endfor %}
+</table>
+
+<p><a href="{% url 'select_items' receipt.id %}">Back to Select</a> | <a href="{% url 'split' receipt.id %}">See Split</a></p>

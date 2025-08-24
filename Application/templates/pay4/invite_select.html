@@ -1,0 +1,16 @@
+<h1>You're invited to split: Receipt #{{ receipt.id }}</h1>
+<p>Hi {{ email }}, pick what you had:</p>
+<form method="post">
+  {% csrf_token %}
+  <table border="1">
+    <tr><th>Item</th><th>Qty Available</th><th>Your Qty</th></tr>
+    {% for it in items %}
+      <tr>
+        <td>{{ it.description }}</td>
+        <td>{{ it.quantity }}</td>
+        <td><input type="number" name="qty_{{ it.id }}" min="0" max="{{ it.quantity }}" value="0"></td>
+      </tr>
+    {% endfor %}
+  </table>
+  <button type="submit">Submit my choices</button>
+</form>

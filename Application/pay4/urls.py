@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from django.http import HttpResponse
+def health(request): return HttpResponse("ok", content_type="text/plain")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -16,4 +18,8 @@ urlpatterns = [
     path("<int:receipt_id>/process/", views.process_receipt, name="process_receipt"),
     path("<int:receipt_id>/select/", views.select_items, name="select_items"),
     path("<int:receipt_id>/split/", views.split_view, name="split"),
+    path("<int:receipt_id>/invites/", views.invite_manager, name="invite_manager"),
+    path("invite/<str:token>/", views.invite_select, name="invite_select"),
 ]
+
+urlpatterns += [path("health/", health, name="health")]

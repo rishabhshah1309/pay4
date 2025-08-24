@@ -4,11 +4,10 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
-from receipts.models import Receipt, ReceiptItem, Selection
-from .services import presign_upload, textract_analyze_expense, compute_split
+from receipts.models import Receipt, ReceiptItem, Selection, Invite
+from .services import presign_upload, textract_analyze_expense, compute_split, send_invite_email
 from decimal import Decimal
 import os
-
 @login_required
 def dashboard(request):
     receipts = Receipt.objects.filter(owner=request.user).order_by("-created_at")
@@ -122,3 +121,44 @@ def split_view(request, receipt_id: int):
     ]
     results = compute_split(items, selections, float(r.tax_rate or 0), float(r.tip_rate or 0))
     return render(request, "pay4/split.html", {"receipt": r, "results": results})
+
+@login_required
+def invite_manager(request, receipt_id: int):
+    """Owner manages invites and can send new ones."""
+    r = get_object_or_404(Receipt, id=receipt_id, owner=request.user)
+    invites = r.invites.order_by("-created_at")
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()
+        if not email:
+            return HttpResponseBadRequest("Email required")
+        inv = Invite.objects.create(receipt=r, invitee_email=email)
+        link = send_invite_email(email, inv.token, r.id, r.merchant or "Receipt")
+        # surface link to UI too
+        return render(request, "pay4/invites.html", {"receipt": r, "invites": invites, "new_link": link})
+    return render(request, "pay4/invites.html", {"receipt": r, "invites": invites})
+
+@require_http_methods(["GET", "POST"])
+def invite_select(request, token: str):
+    """
+    Invitee (no login) selects items using a one-time token.
+    Each submit overwrites their prior selections for this receipt.
+    """
+    inv = get_object_or_404(Invite, token=token)
+    r = inv.receipt
+    items = r.items.all().order_by("id")
+    email = inv.invitee_email
+
+    if request.method == "POST":
+        with transaction.atomic():
+            Selection.objects.filter(receipt=r, user_email=email).delete()
+            for it in items:
+                qty = int(request.POST.get(f"qty_{it.id}", "0") or "0")
+                if qty > 0:
+                    Selection.objects.create(receipt=r, item=it, user_email=email, quantity_selected=qty)
+            inv.status = "accepted"
+            inv.save(update_fields=["status"])
+        # simple thank-you page showing a summary
+        selections = Selection.objects.filter(receipt=r, user_email=email)
+        return render(request, "pay4/invite_thanks.html", {"receipt": r, "email": email, "selections": selections})
+
+    return render(request, "pay4/invite_select.html", {"receipt": r, "items": items, "email": email})

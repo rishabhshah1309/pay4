@@ -9,7 +9,6 @@ from botocore.client import Config
 # ---- AWS config ----
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 BUCKET = os.getenv("AWS_STORAGE_BUCKET_NAME", "pay4-receipts-rshah-dev")
-TEXTRACT_MODE = os.getenv("TEXTRACT_MODE", "live")  # "stub" or "live"
 
 
 # -----------------------------
@@ -57,13 +56,6 @@ def textract_analyze_expense(bucket: str, key: str) -> List[Dict[str, Any]]:
     In local dev (stub mode), returns hardcoded line items.
     Each item is: {"description": str, "quantity": int, "unit_price": float, "total_price": float}
     """
-    if TEXTRACT_MODE != "live":
-        # Stubbed example data for local development
-        return [
-            {"description": "Burger", "quantity": 1, "unit_price": 12.50, "total_price": 12.50},
-            {"description": "Fries", "quantity": 1, "unit_price": 4.00, "total_price": 4.00},
-            {"description": "Soda", "quantity": 2, "unit_price": 3.00, "total_price": 6.00},
-        ]
 
     client = boto3.client("textract", region_name=AWS_REGION)
     resp = client.analyze_expense(Document={"S3Object": {"Bucket": bucket, "Name": key}})
@@ -195,3 +187,30 @@ def compute_split(
         results[u] = {"subtotal": subtotal, "tax": tax, "tip": tip, "total": total}
 
     return results
+
+SES_REGION = os.getenv("AWS_REGION", "us-west-2")
+INVITE_BASE_URL = os.getenv("INVITE_BASE_URL", "http://127.0.0.1:8000/invite/")
+
+def send_invite_email(to_email: str, token: str, receipt_id: int, merchant: str = "Receipt"):
+    """
+    Sends an invite link via SES. If SES not configured or in sandbox, falls back to print().
+    """
+    link = f"{INVITE_BASE_URL}{token}/"
+    subject = f"You're invited to split: {merchant} (#{receipt_id})"
+    body = f"Hi!\n\nYou've been invited to select your items for {merchant} (receipt #{receipt_id}).\n" \
+           f"Click to participate: {link}\n\nThanks!"
+
+    try:
+        ses = boto3.client("ses", region_name=SES_REGION)
+        ses.send_email(
+            Source=os.getenv("SES_FROM_EMAIL", "no-reply@example.com"),
+            Destination={"ToAddresses": [to_email]},
+            Message={
+                "Subject": {"Data": subject},
+                "Body": {"Text": {"Data": body}},
+            },
+        )
+    except Exception as e:
+        # In dev/sandbox just log the link
+        print(f"[INVITE] to={to_email} link={link} (SES skipped: {e})")
+    return link
