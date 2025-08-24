@@ -5,30 +5,51 @@
 <p><a id="process" href="{% url 'process_receipt' receipt.id %}" style="display:none">Process with Textract</a></p>
 
 <script>
-async function presign(contentType) {
-  const res = await fetch("{% url 'presign' receipt.id %}", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({content_type: contentType})
-  });
-  if (!res.ok) throw new Error("presign failed");
-  return await res.json();
-}
-
-document.getElementById("btn").onclick = async () => {
-  const f = document.getElementById("file").files[0];
-  if (!f) { alert("Pick a file"); return; }
-  const post = await presign(f.type || "application/octet-stream");
-  const fd = new FormData();
-  Object.entries(post.fields).forEach(([k, v]) => fd.append(k, v));
-  fd.append("key", post.fields.key || "{{ receipt.s3_key|default:'' }}");
-  fd.append("file", f);
-  const up = await fetch(post.url, { method: "POST", body: fd });
-  if (up.ok) {
-    document.getElementById("msg").textContent = "Uploaded! Now process.";
-    document.getElementById("process").style.display = "inline";
-  } else {
-    document.getElementById("msg").textContent = "Upload failed.";
+  // --- CSRF helper (Django default cookie name = "csrftoken")
+  function getCookie(name) {
+    const v = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+    return v ? decodeURIComponent(v.split('=')[1]) : null;
   }
-};
-</script>
+  const csrftoken = getCookie('csrftoken');
+  
+  async function presign(contentType) {
+    const res = await fetch("{% url 'presign' receipt.id %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrftoken,        // <-- IMPORTANT
+      },
+      body: JSON.stringify({content_type: contentType}),
+      credentials: "same-origin",        // keep cookies with request
+    });
+    if (!res.ok) throw new Error("presign failed");
+    return await res.json();
+  }
+  
+  document.getElementById("btn").onclick = async () => {
+    const f = document.getElementById("file").files[0];
+    if (!f) { alert("Pick a file"); return; }
+  
+    try {
+      const post = await presign(f.type || "application/octet-stream");
+  
+      const fd = new FormData();
+      // copy presigned fields exactly
+      Object.entries(post.fields).forEach(([k, v]) => fd.append(k, v));
+      // append the file last
+      fd.append("file", f);
+  
+      const up = await fetch(post.url, { method: "POST", body: fd });
+      if (up.ok) {
+        document.getElementById("msg").textContent = "Uploaded! Now process.";
+        document.getElementById("process").style.display = "inline";
+      } else {
+        const t = await up.text();
+        document.getElementById("msg").textContent = "Upload failed: " + t.slice(0, 200);
+      }
+    } catch (e) {
+      document.getElementById("msg").textContent = "Error: " + e.message;
+    }
+  };
+  </script>
+  
