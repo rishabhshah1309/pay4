@@ -1,14 +1,19 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from django.contrib.auth import views as auth_views
-from django.http import HttpResponse
-
-def dashboard(request):
-    return HttpResponse("Pay4 dashboard — coming soon!")
+from . import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
+
+    path("accounts/login/",  auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("", dashboard, name="dashboard"),
+
+    path("", views.dashboard, name="dashboard"),
+    path("new/", views.new_receipt, name="new_receipt"),
+    path("<int:receipt_id>/upload/", views.upload_receipt, name="upload_receipt"),
+    path("<int:receipt_id>/presign/", views.presign_endpoint, name="presign"),
+    path("<int:receipt_id>/process/", views.process_receipt, name="process_receipt"),
+    path("<int:receipt_id>/select/", views.select_items, name="select_items"),
+    path("<int:receipt_id>/split/", views.split_view, name="split"),
 ]

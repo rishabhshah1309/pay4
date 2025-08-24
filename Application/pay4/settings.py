@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "storages",      # for S3 (ok to keep even if unused locally)
     "pay4",          # your app
+    "receipts",
 ]
 
 MIDDLEWARE = [
@@ -32,10 +33,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "pay4.urls"
 
+LOGIN_REDIRECT_URL = "dashboard"
+LOGOUT_REDIRECT_URL = "login"
+
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",  # REQUIRED
-        "DIRS": [BASE_DIR / "templates"],                              # add your project templates dir
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],  # you have templates/registration/login.html already
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -80,6 +84,3 @@ if USE_S3:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Auth redirects (optional)
-LOGIN_REDIRECT_URL = "pay4:dashboard"
-LOGOUT_REDIRECT_URL = "login"
