@@ -8,42 +8,31 @@ from botocore.client import Config
 
 # ---- AWS config ----
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
-BUCKET = os.getenv("AWS_STORAGE_BUCKET_NAME", "")
-TEXTRACT_MODE = os.getenv("TEXTRACT_MODE", "stub")  # "stub" or "live"
+BUCKET = os.getenv("AWS_STORAGE_BUCKET_NAME", "pay4-receipts-rshah-dev")
+TEXTRACT_MODE = os.getenv("TEXTRACT_MODE", "live")  # "stub" or "live"
 
 
 # -----------------------------
 # S3: presigned POST for uploads
 # -----------------------------
 def _s3_client():
-    """
-    S3 client with SigV4 (required for presigned POST).
-    Credentials are taken from the default provider chain (env/cred file/role).
-    """
-    return boto3.client("s3", region_name=AWS_REGION, config=Config(signature_version="s3v4"))
+    # Force SigV4 + virtual-hosted-style
+    return boto3.client(
+        "s3",
+        region_name=AWS_REGION,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+    )
 
-
-def presign_upload(key: str, content_type: str = "application/octet-stream", expires_seconds: int = 900) -> Dict[str, Any]:
-    """
-    Generate a presigned POST so the browser can upload directly to S3.
-
-    Returns a dict like:
-    {
-      "url": "https://<bucket>.s3.amazonaws.com",
-      "fields": {...}   # include these as form fields plus the file itself
-    }
-    """
+def presign_upload(key: str, content_type: str = "application/octet-stream", expires_seconds: int = 900):
     if not BUCKET:
         raise RuntimeError("AWS_STORAGE_BUCKET_NAME is not set")
 
     client = _s3_client()
-
-    # Conditions: enforce bucket, key prefix, content-type, and size
     conditions = [
         {"bucket": BUCKET},
         ["starts-with", "$key", key],
         {"Content-Type": content_type},
-        ["content-length-range", 0, 15_000_000],  # 15MB cap (adjust as needed)
+        ["content-length-range", 0, 15_000_000],
     ]
     fields = {"Content-Type": content_type, "key": key}
 
@@ -54,8 +43,10 @@ def presign_upload(key: str, content_type: str = "application/octet-stream", exp
         Conditions=conditions,
         ExpiresIn=expires_seconds,
     )
-    return post
 
+    # Force the regional endpoint to avoid 307 redirects
+    post["url"] = f"https://{BUCKET}.s3.{AWS_REGION}.amazonaws.com"
+    return post
 
 # -----------------------------
 # Textract: AnalyzeExpense
