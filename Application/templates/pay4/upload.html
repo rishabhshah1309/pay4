@@ -32,7 +32,8 @@
   
     try {
       const post = await presign(f.type || "application/octet-stream");
-  
+      console.log("presign", post.url, post.fields);
+      
       const fd = new FormData();
       // copy presigned fields exactly
       Object.entries(post.fields).forEach(([k, v]) => fd.append(k, v));

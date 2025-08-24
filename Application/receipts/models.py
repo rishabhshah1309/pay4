@@ -38,11 +38,14 @@ class ReceiptItem(models.Model):
     def __str__(self):
         return f"{self.description} x{self.quantity}"
 
+def generate_token():
+    return get_random_string(32)
+
 class Invite(models.Model):
-    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name="invites")
+    receipt = models.ForeignKey("receipts.Receipt", on_delete=models.CASCADE, related_name="invites")
     invitee_email = models.EmailField()
-    token = models.CharField(max_length=64, unique=True, default=get_random_string)
-    status = models.CharField(max_length=32, default="pending")  # pending|accepted|declined|expired
+    token = models.CharField(max_length=64, default=generate_token, unique=True)  # wider length is safer
+    status = models.CharField(max_length=20, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Selection(models.Model):

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Thanks!</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
+    .card { max-width: 700px; border: 1px solid #ddd; border-radius: 12px; padding: 1.5rem; }
+    .muted { color: #666; }
+    ul { line-height: 1.8; }
+    a.btn { display: inline-block; padding: .5rem .9rem; border: 1px solid #ccc; border-radius: 8px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Thanks, {{ email }}!</h1>
+    <p class="muted">Your selections for receipt #{{ receipt.id }} were saved.</p>
+
+    <h3>Your items</h3>
+    <ul>
+      {% for s in selections %}
+        <li>{{ s.item.description }} × {{ s.quantity_selected }}</li>
+      {% empty %}
+        <li>No items selected.</li>
+      {% endfor %}
+    </ul>
+
+    <p>
+      <a class="btn" href="/">Back to dashboard</a>
+      {% if request.user.is_authenticated %}
+        &nbsp; <a class="btn" href="{% url 'split' receipt.id %}">View split</a>
+      {% endif %}
+    </p>
+  </div>
+</body>
+</html>
