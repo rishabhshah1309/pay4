@@ -1,0 +1,14 @@
+<h1>Your Receipts</h1>
+<p><a href="{% url 'new_receipt' %}">+ New Receipt</a></p>
+<ul>
+  {% for r in receipts %}
+    <li>
+      #{{ r.id }} — {{ r.merchant }} — {{ r.status }}
+      [ <a href="{% url 'upload_receipt' r.id %}">upload</a> |
+        <a href="{% url 'select_items' r.id %}">select</a> |
+        <a href="{% url 'split' r.id %}">split</a> ]
+    </li>
+  {% empty %}
+    <li>No receipts yet.</li>
+  {% endfor %}
+</ul>
