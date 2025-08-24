@@ -1,0 +1,3 @@
+Application/.env
+*.env
+.env
