@@ -1,48 +1,33 @@
-version: "3.9"
-
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: pay4
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    #ports:
-    #  - "5432:5432"
-    volumes:
-      - pay4_pgdata:/var/lib/postgresql/data
-
   web:
     build:
-      context: .
+      context: .                # host path = Application/
       dockerfile: Dockerfile
-    command: bash -lc "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 pay4.wsgi:application"
+    command: bash /app/docker/entrypoint.sh
+    env_file:
+      - .env.docker             # put DB creds + secrets here
     environment:
-      # Django
       DJANGO_SETTINGS_MODULE: pay4.settings
-      # DB (django will read these, or use dj-database-url if you prefer)
+
+      # RDS connection (must match what worked in psql)
+      POSTGRES_HOST: pay4-db.c984myi4m1sf.us-west-2.rds.amazonaws.com
+      POSTGRES_PORT: "5432"
       POSTGRES_DB: pay4
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      # AWS
+      POSTGRES_USER: pay4app
+      POSTGRES_PASSWORD: RishRish2001!   # <- the one that worked with psql
+
+      # AWS etc…
       AWS_REGION: us-west-2
       AWS_STORAGE_BUCKET_NAME: pay4-receipts-rshah-dev
-      TEXTRACT_MODE: live    # set to 'live' when you want live Textract
+      TEXTRACT_MODE: live
       INVITE_BASE_URL: http://localhost:8000/invite/
-      AWS_PROFILE: pay4
-      # If you want to use your local profile inside container, mount ~/.aws below instead of keys:
-      # AWS_ACCESS_KEY_ID: your_key
-      # AWS_SECRET_ACCESS_KEY: your_secret
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     volumes:
-      - .:/app
-      - ~/.aws:/home/appuser/.aws:ro   # so boto3 can use your 'pay4' profile if you set AWS_PROFILE
-    
+      - .:/app                  # mount your code into the container
+      - ~/.aws:/home/appuser/.aws:ro   # let boto3 use your AWS profile
+    restart: always
 
-volumes:
-  pay4_pgdata:
+networks:
+  default:
+    driver: bridge
